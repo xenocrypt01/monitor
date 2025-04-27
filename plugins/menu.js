@@ -97,6 +97,7 @@ const menu = async (m, Matrix) => {
 ┃◈┃• update
 ┃◈└───────────┈⊷
 ╰──────────────┈⊷
+
 > *Reply with the number (1-9)*`;
 
     // Function to get menu image
@@ -107,18 +108,26 @@ const menu = async (m, Matrix) => {
           return Buffer.from(response.data, 'binary');
         } catch (error) {
           console.error('Error fetching menu image from URL, falling back to local image:', error);
-          return fs.readFileSync('./media/khan.jpg');
+          return fs.readFileSync('./media/xeno.jpg');
         }
       } else {
-        return fs.readFileSync('./media/xeno.jpg');
+        return fs.readFileSync('./media/khan.jpg');
       }
     };
 
     const menuImage = await getMenuImage();
 
-    const sentMessage = await Matrix.sendMessage(m.from, {
+    // Create button message
+    const buttonMessage = {
       image: menuImage,
       caption: mainMenu,
+      footer: `${config.BOT_NAME} | ${config.OWNER_NAME}`,
+      buttons: [
+        { buttonId: `${prefix}channel`, buttonText: { displayText: '📢 Channel' }, type: 1 },
+        { buttonId: `${prefix}github`, buttonText: { displayText: '💻 GitHub' }, type: 1 },
+        { buttonId: `${prefix}owner`, buttonText: { displayText: '👑 Owner' }, type: 1 }
+      ],
+      headerType: 4,
       contextInfo: {
         mentionedJid: [m.sender],
         forwardingScore: 999,
@@ -129,13 +138,13 @@ const menu = async (m, Matrix) => {
           serverMessageId: 143
         }
       }
-    }, {
-      quoted: m
-    });
+    };
+
+    const sentMessage = await Matrix.sendMessage(m.from, buttonMessage, { quoted: m });
 
     // Send audio after sending the menu
     await Matrix.sendMessage(m.from, {
-      audio: { url: 'https://files.catbox.moe/0zs302.mp3' },
+      audio: { url: 'https://files.catbox.moe/rvfjap.mp3' },
       mimetype: 'audio/mp4',
       ptt: true
     }, { quoted: m });
@@ -143,6 +152,40 @@ const menu = async (m, Matrix) => {
     // Set up listener for menu selection
     Matrix.ev.on('messages.upsert', async (event) => {
       const receivedMessage = event.messages[0];
+      if (!receivedMessage?.message?.buttonsResponseMessage) return;
+
+      // Handle button responses
+      if (receivedMessage.message.buttonsResponseMessage.selectedButtonId === `${prefix}channel`) {
+        await Matrix.sendMessage(m.from, {
+          text: `📢 *My Official Channel*:\nhttps://whatsapp.com/channel/0029VaesBAXJJhzefVszDu3h`,
+          contextInfo: {
+            mentionedJid: [m.sender]
+          }
+        }, { quoted: m });
+        return;
+      }
+
+      if (receivedMessage.message.buttonsResponseMessage.selectedButtonId === `${prefix}github`) {
+        await Matrix.sendMessage(m.from, {
+          text: `💻 *GitHub Repository*:\nhttps://github.com/darkdev-tech/monitor`,
+          contextInfo: {
+            mentionedJid: [m.sender]
+          }
+        }, { quoted: m });
+        return;
+      }
+
+      if (receivedMessage.message.buttonsResponseMessage.selectedButtonId === `${prefix}owner`) {
+        await Matrix.sendMessage(m.from, {
+          text: `👑 *Contact Owner*:\n${config.OWNER_NUMBER}`,
+          contextInfo: {
+            mentionedJid: [m.sender]
+          }
+        }, { quoted: m });
+        return;
+      }
+
+      // Original menu selection handling
       if (!receivedMessage?.message?.extendedTextMessage) return;
 
       const receivedText = receivedMessage.message.extendedTextMessage.text.trim();
